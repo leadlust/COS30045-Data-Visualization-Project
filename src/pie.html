@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pie Chart</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f9;
+    }
+
+    nav {
+      background-color: #242425;
+      padding: 15px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    nav a {
+      color: #ffffff;
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 18px;
+      padding: 10px 20px;
+      border-radius: 5px;
+    }
+
+    nav a:hover {
+      background-color: #000000;
+      transform: scale(1.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+      font-size: 36px;
+      color: #242425;
+      text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
+    }
+
+    #controls {
+      max-width: 1660px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    #controls label {
+      font-size: 16px;
+      color: #242425;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 23%;
+      min-width: 200px;
+    }
+    #controls select {
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+
+    #countrySelect[multiple] {
+      height: 120px;
+      overflow-y: auto;
+    }
+    #controls select:focus {
+      box-shadow: 0 0 5px rgba(0,123,255,0.5);
+      outline: none;
+    }
+
+    #pieBox {
+      max-width: 1660px;
+      min-width: 800px;
+      margin: 30px auto 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px 30px 30px 30px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #chart {
+      width: 100%;
+      height: 900px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #chart svg {
+      width: 95%;
+      height: 95%;
+      display: block;
+    }
+
+    #chart svg text {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      pointer-events: none;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: none;
+      max-width: 320px;
+      word-break: break-word;
+      white-space: pre-line;
+      pointer-events: none;
+    }
+
+    .tooltip.visible {
+      display: block;
+      opacity: 1;
+      transform: translateY(-5px);
+    }
+
+    .legend {
+      position: absolute;
+      width: 140px;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      max-width: 200px;
+      max-height: 600px;
+      overflow-y: auto;
+      transition: width 0.3s, max-width 0.3s;
+    }
+    .legend.expanded {
+      width: 420px;
+      max-width: 600px;
+      right: 20px;
+      left: unset;
+      max-height: 800px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      flex-direction: row;
+    }
+    .legend.expanded .legend-item {
+      min-width: 180px;
+      max-width: 220px;
+      margin-right: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .legend-item span {
+      font-size: 18px;
+      color: #242425;
+    }
+
+    .chart-title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      margin: 10px 0;
+      color: #242425;
+    }
+
+    #chart_table {
+      margin: 30px auto 40px auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border: none;
+      max-width: 1710px;
+      width: 1710px;
+      min-width: 0;
+      border-collapse: collapse;
+      overflow: hidden;
+    }
+
+    #chart_table th, #chart_table td {
+      padding: 10px;
+      text-align: center;
+      font-size: 16px;
+      border: 1px solid #ccc;
+    }
+
+    #chart_table th {
+      background-color: #242425;
+      color: #ffffff;
+    }
+
+    #chart_table td {
+      color: #242425;
+    }
+
+    #chart_table tr:nth-child(even) {
+      background-color: #f4f4f9;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="pie.html">Pie Chart</a>
+    <a href="tsp.html">Time Series Plot</a>
+    <a href="map.html">Choropleth Map</a>
+    <a href="scatterplot.html">Scatter Plot</a>
+    <a href="bar.html">Bar Chart</a>
+  </nav>
+
+  <h1>Pie Chart</h1>
+
+
+  <div id="controls">
+    <label>
+      Select Countries:
+      <select id="countrySelect" multiple size="10"></select>
+    </label>
+    <label>
+      Select Year:
+      <select id="yearSelect"></select>
+    </label>
+    <label>
+      Select Measurement Method:
+      <select id="measurementSelect"></select>
+    </label>
+    <label>
+      Select Nutrient:
+      <select id="nutrientSelect">
+        <option value="NITROGEN">NITROGEN</option>
+        <option value="PHOSPHORUS">PHOSPHORUS</option>
+        <option value="TOTAL" disabled="true">TOTAL</option> 
+      </select>
+    </label>
+  </div>
+
+  <div id="pieBox">
+    <div id="chart">
+      <div class="chart-title" id="chartTitle" style="display:none;"></div>
+      <div class="tooltip" id="tooltip"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+
+  <table id="chart_table">
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Nitrogen Value</th>
+        <th>Phosphorus Value</th>
+        <th>Total Value</th>
+        <th>Country Ratio</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+
+  <script>
+    var datasetPath = "processed_project_dataset.csv";
+   //mapping process
+    d3.csv(datasetPath).then(function (data) {
+      const processedData = data.map(d => ({
+        year: d.TIME_PERIOD,
+        country: d["Reference area"],
+        nutrient: d.NUTRIENTS,
+        measure: d.Measure,
+        value: +d.OBS_VALUE * (+d.UNIT_MULT || 1),
+      }));
+      
+      const years = Array.from(new Set(processedData.map(d => d.year))).sort();
+      const countries = Array.from(new Set(processedData.map(d => d.country)));
+      const measurements = Array.from(new Set(processedData.map(d => d.measure)));
+
+      const yearSelect = d3.select("#yearSelect");
+      const countrySelect = d3.select("#countrySelect");
+      const measurementSelect = d3.select("#measurementSelect");
+      const nutrientSelect = d3.select("#nutrientSelect");
+  
+      //initiate option value
+      years.forEach(year => {
+        yearSelect.append("option").text(year).attr("value", year);
+      });
+
+      countries.forEach(country => {
+        countrySelect.append("option").text(country).attr("value", country);
+      });
+
+      measurements.forEach(measurement => {
+        measurementSelect.append("option").text(measurement).attr("value", measurement);
+      });
+       
+      //create chart 
+      const svg = d3.select("#chart").append("svg")
+        .attr("viewBox", "0 0 600 600")
+        .attr("preserveAspectRatio", "xMidYMid meet");
+
+      const tooltip = d3.select("#tooltip");
+      const radius = 250;
+      const donutWidth = 60;
+      const pieGenerator = d3.pie().value(d => d.value);
+      // Outer donut (main countries)
+      const arcOuter = d3.arc().innerRadius(radius - donutWidth).outerRadius(radius);
+      // Inner donut (small countries <5%)
+      const arcInner = d3.arc().innerRadius(radius - 2 * donutWidth).outerRadius(radius - donutWidth - 10);
+
+      //update country function 
+      function updateCountry() {
+        const selectedYear = yearSelect.node().value;
+        const selectedMeasurement = measurementSelect.node().value;
+        const selectedNutrient = nutrientSelect.node().value;
+
+        const validCountries = new Set(
+          processedData
+            .filter(d =>
+              d.year === selectedYear &&
+              d.measure === selectedMeasurement &&
+              (selectedNutrient === "TOTAL" ? d.nutrient === "N/A" : d.nutrient === selectedNutrient) &&
+              d.value > 0
+            )
+            .map(d => d.country)
+        );
+        //if have no data then disable it 
+        countrySelect.selectAll("option").each(function () {
+          const option = d3.select(this);
+          const value = option.property("value");
+          const isValid = validCountries.has(value);
+          option.property("disabled", !isValid);
+        });
+      } 
+
+      //update chart function
+      const updateChart = () => {
+        const selectedYear = yearSelect.node().value;
+        const selectedCountries = Array.from(countrySelect.node().selectedOptions).map(option => option.value);
+        const selectedMeasurement = measurementSelect.node().value;
+        const selectedNutrient = nutrientSelect.node().value;
+
+        // Only show and update chart title if at least one country is selected
+        if (selectedCountries.length > 0) {
+          d3.select("#chartTitle")
+            .style("display", "block")
+            .text(`${selectedMeasurement} - ${selectedNutrient} in ${selectedYear}`);
+        } else {
+          d3.select("#chartTitle")
+            .style("display", "none")
+            .text("");
+        }
+
+        const filteredData = processedData.filter(d =>
+          d.year === selectedYear &&
+          selectedCountries.includes(d.country) &&
+          d.measure === selectedMeasurement &&
+          (selectedNutrient === "TOTAL" ? d.nutrient === "N/A" : d.nutrient === selectedNutrient) &&
+          d.value > 0
+        );
+
+        // List of EU countries to skip if EU is selected
+        const euCountries = [
+          "Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"
+        ];
+        // If European Union is selected, remove EU countries from pieDataRaw and collect their names
+        let euMemberNames = [];
+        let selectedCountriesFiltered = selectedCountries;
+        if (selectedCountries.includes("European Union")) {
+          selectedCountriesFiltered = selectedCountries.filter(c => !euCountries.includes(c));
+          euMemberNames = selectedCountries.filter(c => euCountries.includes(c));
+        }
+        const filteredDataForPie = processedData.filter(d =>
+          d.year === selectedYear &&
+          selectedCountriesFiltered.includes(d.country) &&
+          d.measure === selectedMeasurement &&
+          (selectedNutrient === "TOTAL" ? d.nutrient === "N/A" : d.nutrient === selectedNutrient) &&
+          d.value > 0
+        );
+        // Group countries for four layers: ≥3% (outer), 0.3–3% (middle), 0.02–0.3% (inner donut), <0.02% (center pie)
+        const groupedData = d3.rollup(filteredDataForPie, v => d3.sum(v, d => d.value), d => d.country);
+        let pieDataRaw = Array.from(groupedData, ([key, value]) => ({ country: key, value }));
+        const totalSumRaw = d3.sum(pieDataRaw, d => d.value);
+        let outerData = [];
+        let middleData = [];
+        let innerData = [];
+        let centerData = [];
+        pieDataRaw.forEach(d => {
+          const percent = (d.value / totalSumRaw) * 100;
+          if (percent < 0.05) {
+            centerData.push(d);
+          } else if (percent < 0.3) {
+            innerData.push(d);
+          } else if (percent < 3) {
+            middleData.push(d);
+          } else {
+            outerData.push(d);
+          }
+        });
+
+        // Color scales
+        const colorOuter = d3.scaleOrdinal()
+          .domain(outerData.map(d => d.country))
+          .range(d3.schemeCategory10);
+        const colorMiddle = d3.scaleOrdinal()
+          .domain(middleData.map(d => d.country))
+          .range(d3.schemePastel1);
+        const colorInner = d3.scaleOrdinal()
+          .domain(innerData.map(d => d.country))
+          .range(d3.schemeSet3);
+        const colorCenter = d3.scaleOrdinal()
+          .domain(centerData.map(d => d.country))
+          .range(d3.schemeTableau10);
+
+        svg.selectAll(".arc").remove();
+        svg.selectAll(".label").remove();
+
+        const pieGroup = svg.append("g")
+          .attr("transform", "translate(300,300)");
+
+        // Outer donut (main countries, ≥3%)
+        const arcsOuter = pieGroup.selectAll(".arc-outer")
+          .data(pieGenerator(outerData));
+        const arcOuterEnter = arcsOuter.enter()
+          .append("g")
+          .attr("class", "arc arc-outer");
+
+        arcOuterEnter.append("path")
+          .attr("d", arcOuter)
+          .attr("fill", d => colorOuter(d.data.country))
+          .on("mouseover", function(event, d) {
+            d3.select("#exploded-slice").remove();
+            d3.select("#exploded-slice-text").remove();
+            d3.select(this).style("opacity", 0);
+            d3.select(this.parentNode).select("text").style("opacity", 0);
+            const angle = (d.startAngle + d.endAngle) / 2 - Math.PI / 2;
+            const explodeDist = 20;
+            const dx = Math.cos(angle) * explodeDist;
+            const dy = Math.sin(angle) * explodeDist;
+            const arcOuterExplode = d3.arc()
+              .innerRadius(radius - donutWidth - 15)
+              .outerRadius(radius + 20);
+            svg.append("path")
+              .attr("id", "exploded-slice")
+              .attr("d", arcOuterExplode(d))
+              .attr("fill", colorOuter(d.data.country))
+              .attr("stroke", "#333")
+              .attr("stroke-width", 2)
+              .attr("transform", `translate(300,300)`)
+              .style("pointer-events", "none");
+            const centroid = arcOuterExplode.centroid(d);
+            svg.append("text")
+              .attr("id", "exploded-slice-text")
+              .attr("x", 300 + centroid[0])
+              .attr("y", 300 + centroid[1] + 5)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "14px")
+              .attr("font-weight", "bold")
+              .attr("fill", "#333")
+              .style("user-select", "none")
+              .style("pointer-events", "none")
+              .text(`${((d.data.value / totalSumRaw) * 100).toFixed(1)}%`);
+            let tooltipHtml = `<strong>${d.data.country}</strong>: ${d.data.value.toFixed(2)} (${((d.data.value / totalSumRaw) * 100).toFixed(2)}%)`;
+            if (d.data.country === "European Union" && euMemberNames.length > 0) {
+              // For each EU member, show value and percent (from filteredData, not pieDataRaw)
+              var euMemberDetails = euMemberNames.map(function(name) {
+                var member = filteredData.find(x => x.country === name);
+                var val = member ? member.value.toFixed(2) : "N/A";
+                var pct = (member && totalSumRaw > 0) ? ((member.value / totalSumRaw) * 100).toFixed(2) + "%" : "N/A";
+                return `${name}: ${val} (${pct})`;
+              });
+              tooltipHtml += `<br><span style='font-size:12px;'><strong>Members:</strong><br>${euMemberDetails.join("<br>")}</span>`;
+            }
+            // Position tooltip near mouse, but keep inside chart
+            const [mouseX, mouseY] = d3.pointer(event, document.body);
+            const chartRect = document.getElementById('chart').getBoundingClientRect();
+            let left = event.clientX - chartRect.left + 20;
+            let top = event.clientY - chartRect.top - 10;
+            const tooltipWidth = 320;
+            const tooltipHeight = 60;
+            if (left + tooltipWidth > chartRect.width) left = chartRect.width - tooltipWidth - 10;
+            if (left < 0) left = 10;
+            if (top + tooltipHeight > chartRect.height) top = chartRect.height - tooltipHeight - 10;
+            if (top < 0) top = 10;
+            tooltip.style("display", "block")
+                .html(tooltipHtml)
+                .style("left", `${left}px`)
+                .style("top", `${top}px`);
+          })
+          .on("mouseout", function(event, d) {
+            d3.select("#exploded-slice").remove();
+            d3.select("#exploded-slice-text").remove();
+            d3.select(this).style("opacity", 1);
+            d3.select(this.parentNode).select("text").style("opacity", 1);
+            tooltip.style("display", "none");
+          })
+          .transition()
+          .duration(750)
+          .attrTween("d", function(d) {
+            const interpolate = d3.interpolate(
+              { startAngle: d.startAngle, endAngle: d.startAngle },
+              { startAngle: d.startAngle, endAngle: d.endAngle }
+            );
+            return function(t) {
+              return arcOuter(interpolate(t));
+            };
+          });
+
+        arcOuterEnter.append("text")
+          .attr("transform", d => `translate(${arcOuter.centroid(d)})`)
+          .attr("text-anchor", "middle")
+          .attr("font-size", "14px")
+          .attr("font-weight", "bold")
+          .text(d => `${((d.data.value / totalSumRaw) * 100).toFixed(1)}%`);
+
+        // Middle donut (0.3% ≤ country < 3%)
+        if (middleData.length > 0) {
+          const arcMiddle = d3.arc().innerRadius(radius - 2 * donutWidth).outerRadius(radius - donutWidth - 10);
+          const arcsMiddle = pieGroup.selectAll(".arc-middle")
+            .data(pieGenerator(middleData));
+          const arcMiddleEnter = arcsMiddle.enter()
+            .append("g")
+            .attr("class", "arc arc-middle");
+
+          arcMiddleEnter.append("path")
+            .attr("d", arcMiddle)
+            .attr("fill", d => colorMiddle(d.data.country))
+            .on("mouseover", function(event, d) {
+              d3.select("#exploded-slice").remove();
+              d3.select("#exploded-slice-text").remove();
+              d3.select(this).style("opacity", 0);
+              d3.select(this.parentNode).select("text").style("opacity", 0);
+              const angle = (d.startAngle + d.endAngle) / 2 - Math.PI / 2;
+              const explodeDist = 20;
+              const dx = Math.cos(angle) * explodeDist;
+              const dy = Math.sin(angle) * explodeDist;
+              const arcMiddleExplode = d3.arc()
+                .innerRadius(radius - 2 * donutWidth - 15)
+                .outerRadius(radius - donutWidth + 10);
+              svg.append("path")
+                .attr("id", "exploded-slice")
+                .attr("d", arcMiddleExplode(d))
+                .attr("fill", colorMiddle(d.data.country))
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(300,300)`)
+                .style("pointer-events", "none");
+              const centroid = arcMiddleExplode.centroid(d);
+              svg.append("text")
+                .attr("id", "exploded-slice-text")
+                .attr("x", 300 + centroid[0])
+                .attr("y", 300 + centroid[1] + 5)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "12px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#333")
+                .style("user-select", "none")
+                .style("pointer-events", "none")
+                .text(`${((d.data.value / totalSumRaw) * 100).toFixed(1)}%`);
+              let tooltipHtml = `<strong>${d.data.country}</strong>: ${d.data.value.toFixed(2)} (${((d.data.value / totalSumRaw) * 100).toFixed(2)}%)`;
+              if (d.data.country === "European Union" && euMemberNames.length > 0) {
+                var euMemberDetails = euMemberNames.map(function(name) {
+                  var member = filteredData.find(x => x.country === name);
+                  var val = member ? member.value.toFixed(2) : "N/A";
+                  var pct = (member && totalSumRaw > 0) ? ((member.value / totalSumRaw) * 100).toFixed(2) + "%" : "N/A";
+                  return `${name}: ${val} (${pct})`;
+                });
+                tooltipHtml += `<br><span style='font-size:12px;'><strong>Members:</strong><br>${euMemberDetails.join("<br>")}</span>`;
+              }
+              const [mouseX, mouseY] = d3.pointer(event, document.body);
+              const chartRect = document.getElementById('chart').getBoundingClientRect();
+              let left = event.clientX - chartRect.left + 20;
+              let top = event.clientY - chartRect.top - 10;
+              const tooltipWidth = 320;
+              const tooltipHeight = 60;
+              if (left + tooltipWidth > chartRect.width) left = chartRect.width - tooltipWidth - 10;
+              if (left < 0) left = 10;
+              if (top + tooltipHeight > chartRect.height) top = chartRect.height - tooltipHeight - 10;
+              if (top < 0) top = 10;
+              tooltip.style("display", "block")
+                .html(tooltipHtml)
+                .style("left", `${left}px`)
+                .style("top", `${top}px`);
+            })
+            .on("mouseout", function(event, d) {
+              d3.select("#exploded-slice").remove();
+              d3.select("#exploded-slice-text").remove();
+              d3.select(this).style("opacity", 1);
+              d3.select(this.parentNode).select("text").style("opacity", 1);
+              tooltip.style("display", "none");
+            })
+            .transition()
+            .duration(750)
+            .attrTween("d", function(d) {
+              const interpolate = d3.interpolate(
+                { startAngle: d.startAngle, endAngle: d.startAngle },
+                { startAngle: d.startAngle, endAngle: d.endAngle }
+              );
+              return function(t) {
+                return arcMiddle(interpolate(t));
+              };
+            });
+
+          arcMiddleEnter.append("text")
+            .attr("transform", d => `translate(${arcMiddle.centroid(d)})`)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "12px")
+            .attr("font-weight", "bold")
+            .text(d => `${((d.data.value / totalSumRaw) * 100).toFixed(1)}%`);
+        }
+
+        // Inner donut (0.02% ≤ country < 0.3%)
+        if (innerData.length > 0) {
+          const arcInnerMost = d3.arc().innerRadius(radius - 3 * donutWidth).outerRadius(radius - 2 * donutWidth - 10);
+          const arcsInner = pieGroup.selectAll(".arc-inner")
+            .data(pieGenerator(innerData));
+          const arcInnerEnter = arcsInner.enter()
+            .append("g")
+            .attr("class", "arc arc-inner");
+
+          arcInnerEnter.append("path")
+            .attr("d", arcInnerMost)
+            .attr("fill", d => colorInner(d.data.country))
+            .on("mouseover", function(event, d) {
+              d3.select("#exploded-slice").remove();
+              d3.select("#exploded-slice-text").remove();
+              d3.select(this).style("opacity", 0);
+              d3.select(this.parentNode).select("text").style("opacity", 0);
+              const angle = (d.startAngle + d.endAngle) / 2 - Math.PI / 2;
+              const explodeDist = 20;
+              const dx = Math.cos(angle) * explodeDist;
+              const dy = Math.sin(angle) * explodeDist;
+              const arcInnerMostExplode = d3.arc()
+                .innerRadius(radius - 3 * donutWidth - 15)
+                .outerRadius(radius - 2 * donutWidth + 10);
+              svg.append("path")
+                .attr("id", "exploded-slice")
+                .attr("d", arcInnerMostExplode(d))
+                .attr("fill", colorInner(d.data.country))
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(300,300)`)
+                .style("pointer-events", "none");
+              const centroid = arcInnerMostExplode.centroid(d);
+              svg.append("text")
+                .attr("id", "exploded-slice-text")
+                .attr("x", 300 + centroid[0])
+                .attr("y", 300 + centroid[1] + 5)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "10px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#333")
+                .style("user-select", "none")
+                .style("pointer-events", "none")
+                .text(`${((d.data.value / totalSumRaw) * 100).toFixed(2)}%`);
+              let tooltipHtml = `<strong>${d.data.country}</strong>: ${d.data.value.toFixed(2)} (${((d.data.value / totalSumRaw) * 100).toFixed(2)}%)`;
+              if (d.data.country === "European Union" && euMemberNames.length > 0) {
+                var euMemberDetails = euMemberNames.map(function(name) {
+                  var member = filteredData.find(x => x.country === name);
+                  var val = member ? member.value.toFixed(2) : "N/A";
+                  var pct = (member && totalSumRaw > 0) ? ((member.value / totalSumRaw) * 100).toFixed(2) + "%" : "N/A";
+                  return `${name}: ${val} (${pct})`;
+                });
+                tooltipHtml += `<br><span style='font-size:12px;'><strong>Members:</strong><br>${euMemberDetails.join("<br>")}</span>`;
+              }
+              const [mouseX, mouseY] = d3.pointer(event, document.body);
+              const chartRect = document.getElementById('chart').getBoundingClientRect();
+              let left = event.clientX - chartRect.left + 20;
+              let top = event.clientY - chartRect.top - 10;
+              const tooltipWidth = 320;
+              const tooltipHeight = 60;
+              if (left + tooltipWidth > chartRect.width) left = chartRect.width - tooltipWidth - 10;
+              if (left < 0) left = 10;
+              if (top + tooltipHeight > chartRect.height) top = chartRect.height - tooltipHeight - 10;
+              if (top < 0) top = 10;
+              tooltip.style("display", "block")
+                .html(tooltipHtml)
+                .style("left", `${left}px`)
+                .style("top", `${top}px`);
+            })
+            .on("mouseout", function(event, d) {
+              d3.select("#exploded-slice").remove();
+              d3.select("#exploded-slice-text").remove();
+              d3.select(this).style("opacity", 1);
+              d3.select(this.parentNode).select("text").style("opacity", 1);
+              tooltip.style("display", "none");
+            })
+            .transition()
+            .duration(750)
+            .attrTween("d", function(d) {
+              const interpolate = d3.interpolate(
+                { startAngle: d.startAngle, endAngle: d.startAngle },
+                { startAngle: d.startAngle, endAngle: d.endAngle }
+              );
+              return function(t) {
+                return arcInnerMost(interpolate(t));
+              };
+            });
+
+          arcInnerEnter.append("text")
+            .attr("transform", d => `translate(${arcInnerMost.centroid(d)})`)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .attr("font-weight", "bold")
+            .text(d => `${((d.data.value / totalSumRaw) * 100).toFixed(2)}%`);
+        }
+
+        // Center pie (<0.02%)
+        if (centerData.length > 0) {
+          const arcCenter = d3.arc().innerRadius(0).outerRadius(radius - 3 * donutWidth - 10);
+          const arcsCenter = pieGroup.selectAll(".arc-center")
+            .data(pieGenerator(centerData));
+          const arcCenterEnter = arcsCenter.enter()
+            .append("g")
+            .attr("class", "arc arc-center");
+
+          arcCenterEnter.append("path")
+            .attr("d", arcCenter)
+            .attr("fill", d => colorCenter(d.data.country))
+            .on("mouseover", function(event, d) {
+              d3.select("#center-outline").remove();
+              svg.append("path")
+                .attr("id", "center-outline")
+                .attr("d", arcCenter(d))
+                .attr("fill", "none")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(300,300)`)
+                .style("pointer-events", "none");
+              let tooltipHtml = `<strong>${d.data.country}</strong>: ${d.data.value.toFixed(2)} (${((d.data.value / totalSumRaw) * 100).toFixed(4)}%)`;
+              if (d.data.country === "European Union" && euMemberNames.length > 0) {
+                var euMemberDetails = euMemberNames.map(function(name) {
+                  var member = filteredData.find(x => x.country === name);
+                  var val = member ? member.value.toFixed(2) : "N/A";
+                  var pct = (member && totalSumRaw > 0) ? ((member.value / totalSumRaw) * 100).toFixed(2) + "%" : "N/A";
+                  return `${name}: ${val} (${pct})`;
+                });
+                tooltipHtml += `<br><span style='font-size:12px;'><strong>Members:</strong><br>${euMemberDetails.join("<br>")}</span>`;
+              }
+              const [mouseX, mouseY] = d3.pointer(event, document.body);
+              const chartRect = document.getElementById('chart').getBoundingClientRect();
+              let left = event.clientX - chartRect.left + 20;
+              let top = event.clientY - chartRect.top - 10;
+              const tooltipWidth = 320;
+              const tooltipHeight = 60;
+              if (left + tooltipWidth > chartRect.width) left = chartRect.width - tooltipWidth - 10;
+              if (left < 0) left = 10;
+              if (top + tooltipHeight > chartRect.height) top = chartRect.height - tooltipHeight - 10;
+              if (top < 0) top = 10;
+              tooltip.style("display", "block")
+                .html(tooltipHtml)
+                .style("left", `${left}px`)
+                .style("top", `${top}px`);
+            })
+            .on("mouseout", function(event, d) {
+              d3.select("#center-outline").remove();
+              tooltip.style("display", "none");
+            })
+            .transition()
+            .duration(750)
+            .attrTween("d", function(d) {
+              const interpolate = d3.interpolate(
+                { startAngle: d.startAngle, endAngle: d.startAngle },
+                { startAngle: d.startAngle, endAngle: d.endAngle }
+              );
+              return function(t) {
+                return arcCenter(interpolate(t));
+              };
+            });
+        }
+        
+        // Legends
+        const legend = d3.select("#legend");
+        const legendNode = legend.node();
+        legend.html("");
+        // Hide legend if no countries selected
+        if (!selectedCountries || selectedCountries.length === 0) {
+          if (legendNode) legendNode.style.display = "none";
+        } else {
+          if (legendNode) legendNode.style.display = "";
+          // Count total countries in legend
+          let legendCountryCount = outerData.length + middleData.length + innerData.length + centerData.length;
+          // If too many, expand legend leftward
+          if (legendCountryCount > 18) {
+            legend.classed("expanded", true);
+          } else {
+            legend.classed("expanded", false);
+          }
+          function appendLegendSection(title, items, colorFn) {
+            const sectionTitle = legend.append("div")
+              .attr("class", "legend-section-title")
+              .style("font-weight", "bold")
+              .style("margin-top", legend.selectAll('.legend-section-title').size() > 0 ? "8px" : null)
+              .text(title);
+            // If expanded, make title full width and force next row
+            if (legend.classed("expanded")) {
+              sectionTitle.style("flex-basis", "100%")
+                .style("width", "100%")
+                .style("max-width", "100%")
+                .style("display", "block");
+            }
+            items.forEach(d => {
+              const legendItem = legend.append("div").attr("class", "legend-item");
+              legendItem.append("div")
+                .attr("class", "legend-color")
+                .style("background-color", colorFn(d.country));
+              legendItem.append("span").text(d.country);
+            });
+          }
+          appendLegendSection("High Amount (≥3%)", outerData, colorOuter);
+          if (middleData.length > 0) {
+            appendLegendSection("Medium Amount (0.3%–3%)", middleData, colorMiddle);
+          }
+          if (innerData.length > 0) {
+            appendLegendSection("Low Amount (0.02%–0.3%)", innerData, colorInner);
+          }
+          if (centerData.length > 0) {
+            appendLegendSection("Very Low Amount (<0.02%)", centerData, colorCenter);
+          }
+        }
+
+        // Update table
+        const tableBody = d3.select("#chart_table tbody");
+        tableBody.html("");
+
+        pieDataRaw.forEach(d => {
+          const nitrogenValue = selectedNutrient === "NITROGEN" ? d.value : 0;
+          const phosphorusValue = selectedNutrient === "PHOSPHORUS" ? d.value : 0;
+          const totalValue = d.value;
+          const countryRatio = totalSumRaw > 0 ? (d.value / totalSumRaw * 100).toFixed(2) + "%" : "N/A";
+
+          var tr = tableBody.append("tr");
+          if (d.country === "European Union") {
+            tr.style("font-weight", "bold");
+          }
+          tr.html(`
+              <td>${d.country}</td>
+              <td>${nitrogenValue.toFixed(2)}</td>
+              <td>${phosphorusValue.toFixed(2)}</td>
+              <td>${totalValue.toFixed(2)}</td>
+              <td>${countryRatio}</td>
+            `);
+
+          // If this is the European Union row and there are skipped EU members, add their values as sub-rows
+          if (d.country === "European Union" && euMemberNames.length > 0) {
+            euMemberNames.forEach(function(name) {
+              var member = filteredData.find(x => x.country === name);
+              var val = member ? member.value : 0;
+              var nitrogenVal = selectedNutrient === "NITROGEN" ? val : 0;
+              var phosphorusVal = selectedNutrient === "PHOSPHORUS" ? val : 0;
+              var totalVal = val;
+              var ratio = (member && totalSumRaw > 0) ? (val / totalSumRaw * 100).toFixed(2) + "%" : "N/A";
+              tableBody.append("tr")
+                .attr("class", "eu-member-row")
+                .style("font-size", "16px")
+                .style("background-color", "#f9f9fc")
+                .html(`
+                  <td style='padding-left:32px;'>↳ ${name}</td>
+                  <td>${nitrogenVal.toFixed(2)}</td>
+                  <td>${phosphorusVal.toFixed(2)}</td>
+                  <td>${totalVal.toFixed(2)}</td>
+                  <td>${ratio}</td>
+                `);
+            });
+          }
+        });
+      };
+
+      yearSelect.on("change", () => { // when change year update country and chart 
+        updateCountry();
+        updateChart();
+      });
+
+      function clearSelectedCountries() {
+        countrySelect.selectAll("option").property("selected", false);
+      }
+      
+      measurementSelect.on("change", function () { //update when measurement methods option changed 
+        clearSelectedCountries();
+        var selectedMeasurement = measurementSelect.node().value;
+        
+        //if countries have nutrients value "N/A" then print obs value and disable other nutrients option when in that measurement methods
+        if (
+          processedData.some(d => d.measure === selectedMeasurement && (!d.nutrient.includes("NITROGEN") 
+          && !d.nutrient.includes("PHOSPHORUS") && d.nutrient.includes("N/A")))
+        ) {
+          nutrientSelect.selectAll("option").property("disabled", true);
+          nutrientSelect.node().value = "TOTAL";
+        } else {
+          nutrientSelect.selectAll("option").property("disabled", false);
+          nutrientSelect.select('option[value="TOTAL"]').property("disabled", true);
+          nutrientSelect.node().value = nutrientSelect.selectAll("option").nodes()[0].value;
+        }
+
+        updateCountry();
+        updateChart();
+      });
+
+      nutrientSelect.on("change", () => { //update when nutrient option changed
+        updateCountry();
+        updateChart();
+      });
+
+      countrySelect.on("change", updateChart); //update when countries option changed
+
+      updateCountry();
+      updateChart();
+    });
+  </script>
+</body>
+</html>

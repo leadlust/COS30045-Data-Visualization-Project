@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bar Chart</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f9;
+    }
+
+    nav {
+      background-color: #242425;
+      padding: 15px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    nav a {
+      color: #ffffff;
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 18px;
+      padding: 10px 20px;
+      border-radius: 5px;
+    }
+
+    nav a:hover {
+      background-color: #000000;
+      transform: scale(1.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+      font-size: 36px;
+      color: #242425;
+      text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
+    }
+
+    #controls {
+      max-width: 1660px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    #controls label {
+      font-size: 16px;
+      color: #242425;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 23%;
+      min-width: 200px;
+    }
+    #controls select {
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+
+    #controls select:focus {
+      box-shadow: 0 0 5px rgba(0,123,255,0.5);
+      outline: none;
+    }
+    
+    select[multiple] {
+      height: 120px;
+      overflow-y: auto;
+    }
+
+    #barContainer {
+      max-width: 1660px;
+      min-width: 800px;
+      margin: 30px auto 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px 30px 30px 30px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #chart {
+      width: 100%;
+      height: 1100px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    #chart svg {
+      width: 95%;
+      height: 95%;
+      display: block;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: none;
+      max-width: 320px;
+      word-break: break-word;
+      white-space: pre-line;
+      pointer-events: none;
+    }
+
+    .tooltip.visible {
+      display: block;
+      opacity: 1;
+      transform: translateY(-5px);
+    }
+
+    .legend {
+      position: absolute;
+      width: 140px;
+      top: 10%;
+      right: 7%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      max-width: 200px;
+      max-height: 600px;
+      overflow-y: auto;
+      transition: width 0.3s, max-width 0.3s;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .legend-item span {
+      font-size: 14px;
+      color: #242425;
+    }
+
+    .chart-title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      margin: 10px 0;
+      color: #242425;
+    }
+
+    #chart_table {
+      margin: 30px auto 40px auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border: none;
+      max-width: 1710px;
+      width: 1710px;
+      min-width: 0;
+      border-collapse: collapse;
+      overflow: hidden;
+    }
+
+    #chart_table th, #chart_table td {
+      padding: 10px;
+      text-align: center;
+      font-size: 16px;
+      border: 1px solid #ccc;
+    }
+
+    #chart_table th {
+      background-color: #242425;
+      color: #ffffff;
+    }
+
+    #chart_table td {
+      color: #242425;
+    }
+
+    #chart_table tr:nth-child(even) {
+      background-color: #f4f4f9;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="pie.html">Pie Chart</a>
+    <a href="tsp.html">Time Series Plot</a>
+    <a href="map.html">Choropleth Map</a>
+    <a href="scatterplot.html">Scatter Plot</a>
+    <a href="bar.html">Bar Chart</a>
+  </nav>
+
+  <h1>Bar Chart</h1>
+
+
+  <div id="controls">
+    <label>
+      Select Countries:
+      <select id="countrySelect" multiple size="10"></select>
+    </label>
+    <label style="display: flex; flex-direction: column;">
+      Select Year:
+      <select id="yearSelect"></select>
+      <div style="margin-top: 18px; display: flex; align-items: flex-end; min-width: 120px;">
+        <button id="sort-btn" style="padding: 10px 18px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; background: #242425; color: #fff; font-weight: bold; cursor: pointer;">Sort</button>
+      </div>
+    </label>
+    <label>
+      Select Measurement Method:
+      <select id="measurementSelect"></select>
+    </label>
+    <label>
+      Select Nutrient:
+      <select id="nutrientSelect">
+        <option value="NITROGEN">NITROGEN</option>
+        <option value="PHOSPHORUS">PHOSPHORUS</option>
+        <option value="BOTH NUTRIENTS">BOTH NUTRIENTS</option>
+        <option value="TOTAL" disabled>TOTAL</option>
+      </select>
+    </label>
+  </div>
+
+
+  <div id="barContainer">
+    <div id="chart">
+      <div class="chart-title" id="chartTitle"></div>
+      <div class="tooltip" id="tooltip"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+
+  <table id="chart_table">
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Nitrogen Value</th>
+        <th>Phosphorus Value</th>
+        <th>Total Value</th>
+        <th>Nitrogen Ratio</th>
+        <th>Phosphorus Ratio</th>
+        <th>Country Ratio</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+
+  <script>
+    var datasetPath = "processed_project_dataset.csv"; //path
+    
+    //mapping data 
+    d3.csv(datasetPath).then(function (data) {
+      var flattenedData = data.map(d => ({
+        "Reference area": d["Reference area"],
+        TIME_PERIOD: d.TIME_PERIOD,
+        Measure: d.Measure,
+        Nutrient: d.NUTRIENTS,
+        OBS_VALUE: +d.OBS_VALUE * (+d.UNIT_MULT || 1),
+        MEASURE: d.MEASURE,
+        "Unit of measure": d["Unit of measure"],
+      }));
+
+      var countries = Array.from(new Set(flattenedData.map(d => d["Reference area"])));
+      var years = Array.from(new Set(flattenedData.map(d => d.TIME_PERIOD)));
+      var measurements = Array.from(new Set(flattenedData.map(d => d.Measure)));
+
+      var countrySelect = d3.select("#countrySelect");
+      var yearSelect = d3.select("#yearSelect");
+      var measurementSelect = d3.select("#measurementSelect");
+      var nutrientSelect = d3.select("#nutrientSelect");
+      //intiate option value 
+      countries.forEach(country => {
+        countrySelect.append("option").text(country).attr("value", country);
+      });
+
+      years.forEach(year => {
+        yearSelect.append("option").text(year).attr("value", year);
+      });
+
+      measurements.forEach(measurement => {
+        measurementSelect.append("option").text(measurement).attr("value", measurement);
+      });
+      
+      //create chart 
+      var svg = d3.select("#chart").append("svg")
+        .attr("viewBox", "0 0 1200 600")
+        .attr("preserveAspectRatio", "xMidYMid meet");
+
+      var tooltip = d3.select("#tooltip");
+      var xScale = d3.scaleBand().range([50, 1150]).padding(0.1);
+      var yScale = d3.scaleLinear().range([550, 50]);
+      var xAxis = svg.append("g").attr("transform", "translate(0,550)");
+      var yAxis = svg.append("g").attr("transform", "translate(50,0)");
+      
+      // axis label
+      var yAxisLabel = svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -300)
+        .attr("y", -10)
+        .attr("font-size", "22px")
+        .attr("fill", "#333");
+      
+      
+      measurementSelect.on("change", function () {//update when measurement methods option changed 
+        clearSelectedCountries();
+        var selectedMeasurement = measurementSelect.node().value;
+        
+        //if countries have nutrients value "N/A" then print obs value and disable other nutrients option when in that measurement methods
+        if (
+          flattenedData.some(d => d.Measure === selectedMeasurement && 
+            (!d.Nutrient.includes("NITROGEN") && 
+             !d.Nutrient.includes("PHOSPHORUS") && 
+             d.Nutrient.includes("N/A")))
+        ) {
+          nutrientSelect.selectAll("option").property("disabled", true);
+          nutrientSelect.node().value = "TOTAL";
+        } else {
+          nutrientSelect.selectAll("option").property("disabled", false);
+          nutrientSelect.select('option[value="TOTAL"]').property("disabled", true);
+          nutrientSelect.node().value = nutrientSelect.selectAll("option").nodes()[0].value;
+        }
+
+        updateChart();
+      });
+
+      function clearSelectedCountries() { //clear country when change measurement methods 
+        countrySelect.selectAll("option").property("selected", false);
+      }
+
+      // Always sort descending (highest to lowest)
+
+      // Track sort state
+      var isSorted = false;
+      //update chart function 
+      var updateChart = function (sortOverride) { 
+        var selectedYear = yearSelect.node().value;
+        var selectedMeasurement = measurementSelect.node().value;
+        var selectedNutrient = nutrientSelect.node().value;
+
+        var filteredData = flattenedData.filter(d =>
+          d.TIME_PERIOD === selectedYear &&
+          d.Measure === selectedMeasurement &&
+          (selectedNutrient === "BOTH NUTRIENTS" ||
+            (selectedNutrient === "TOTAL" && d.Nutrient === "N/A") ||
+            d.Nutrient === selectedNutrient)
+        );
+        
+        var countriesWithData = new Set(filteredData.map(d => d["Reference area"])); 
+        countrySelect.selectAll("option").each(function () {
+          var option = d3.select(this);
+          var country = option.property("value");
+          const hasData = filteredData.some(d => d["Reference area"] === country && d.OBS_VALUE > 0);
+
+          option.property("disabled", !hasData);
+        });
+        
+
+
+        var selectedCountries = Array.from(countrySelect.node().selectedOptions).map(option => option.value);
+
+        // List of EU member countries (same as in pie.html)
+        var euCountries = [
+          "Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"
+        ];
+        let euMemberNames = [];
+        let selectedCountriesFiltered = selectedCountries;
+        if (selectedCountries.includes("European Union")) {
+          selectedCountriesFiltered = selectedCountries.filter(c => !euCountries.includes(c));
+          euMemberNames = selectedCountries.filter(c => euCountries.includes(c));
+        }
+        // Filter for selected countries
+        var tempFilteredData = filteredData.filter(d => selectedCountriesFiltered.includes(d["Reference area"]));
+
+        // For BOTH NUTRIENTS, duplicate each country row for NITROGEN and PHOSPHORUS
+        var finalFilteredData;
+        if (selectedNutrient === "BOTH NUTRIENTS") {
+          finalFilteredData = [];
+          selectedCountriesFiltered.forEach(country => {
+            // Find NITROGEN and PHOSPHORUS entries for this country
+            var nitrogenRow = tempFilteredData.find(d => d["Reference area"] === country && d.Nutrient === "NITROGEN");
+            var phosphorusRow = tempFilteredData.find(d => d["Reference area"] === country && d.Nutrient === "PHOSPHORUS");
+            if (nitrogenRow) finalFilteredData.push(nitrogenRow);
+            if (phosphorusRow) finalFilteredData.push(phosphorusRow);
+          });
+        } else {
+          // If multiple 'European Union' bars exist, keep only the one with the highest value for the selected nutrient
+          var euRows = tempFilteredData.filter(d => d["Reference area"] === "European Union");
+          if (euRows.length > 1) {
+            var maxEU = euRows.reduce((max, curr) => (curr.OBS_VALUE > max.OBS_VALUE ? curr : max), euRows[0]);
+            tempFilteredData = tempFilteredData.filter(d => d["Reference area"] !== "European Union");
+            tempFilteredData.push(maxEU);
+          }
+          finalFilteredData = tempFilteredData;
+        }
+
+        // Sorting logic: toggle between sorted and unsorted
+        if ((sortOverride === true || isSorted) && finalFilteredData.length > 0) {
+          // Sort by total value (NITROGEN+PHOSPHORUS or as appropriate)
+          var countryTotals = {};
+          var grouped = d3.group(finalFilteredData, d => d["Reference area"]);
+          grouped.forEach((values, country) => {
+            var nitrogen = values.find(d => d.Nutrient === "NITROGEN")?.OBS_VALUE || 0;
+            var phosphorus = values.find(d => d.Nutrient === "PHOSPHORUS")?.OBS_VALUE || 0;
+            var total;
+            if (selectedNutrient === "NITROGEN") {
+              total = nitrogen;
+            } else if (selectedNutrient === "PHOSPHORUS") {
+              total = phosphorus;
+            } else if (selectedNutrient === "BOTH NUTRIENTS") {
+              total = nitrogen + phosphorus;
+            } else if (selectedNutrient === "TOTAL") {
+              total = values.find(d => d.Nutrient === "N/A")?.OBS_VALUE || 0;
+            }
+            countryTotals[country] = total;
+          });
+          finalFilteredData.sort(function(a, b) {
+            var ta = countryTotals[a["Reference area"]];
+            var tb = countryTotals[b["Reference area"]];
+            return d3.descending(ta, tb);
+          });
+        }
+        
+        // country with no data
+        if (finalFilteredData.length === 0) {
+          svg.selectAll(".bar").remove();
+          svg.selectAll(".baseline").remove();
+          svg.selectAll(".label").remove();
+          d3.select("#legend").html("");
+          d3.select("#legend").style("display", "none");
+          d3.select("#chart_table tbody").html("");
+          return;
+        }
+
+        d3.select("#chartTitle").text(`${selectedMeasurement} - ${selectedNutrient} in ${selectedYear}`); // chart title 
+        yAxisLabel.text(finalFilteredData[0]?.["Unit of measure"] || '');
+
+        // Hide legend if no countries selected, show otherwise
+        if (selectedCountries.length === 0) {
+          d3.select("#legend").style("display", "none");
+        } else {
+          d3.select("#legend").style("display", null);
+        }
+
+        // x axis scaling 
+        xScale.domain(finalFilteredData.map(d => d["Reference area"]));
+        const minVal = d3.min(finalFilteredData, d => d.OBS_VALUE);
+        const maxVal = d3.max(finalFilteredData, d => d.OBS_VALUE);
+        const paddedMax = maxVal > 0 ? maxVal * 1.05 : maxVal;
+        const paddedMin = minVal < 0 ? minVal * 1.05 : 0;
+        
+        //y axis scaling 
+        yScale.domain([paddedMin, paddedMax]);
+        
+        //transition
+        xAxis.transition().duration(600).call(d3.axisBottom(xScale))
+          .on('end', function() {
+            // Rotate x-axis labels to prevent overlap
+            svg.selectAll('g.x.axis g.tick text, g.tick text')
+              .attr('transform', 'rotate(-40)')
+              .style('text-anchor', 'end')
+              .attr('dx', '-0.8em')
+              .attr('dy', '0.15em');
+          });
+        yAxis.transition().duration(600).call(d3.axisLeft(yScale));
+   
+        svg.selectAll(".baseline").remove();
+        svg.append("line")
+          .attr("class", "baseline")
+          .attr("x1", 50)
+          .attr("x2", 1150)
+          .attr("y1", yScale(0))
+          .attr("y2", yScale(0))
+          .attr("stroke", "#000")
+          .attr("stroke-width", 1);
+        
+        //filtering multiple countries
+        var groupedByCountry = d3.group(finalFilteredData, d => d["Reference area"]);
+        var color = d3.scaleOrdinal()
+          .domain(["NITROGEN", "PHOSPHORUS", "TOTAL"])
+          .range(["#4CAF50", "#FFC107", "#FF5722"]);
+
+        svg.selectAll(".bar").remove();
+        svg.selectAll(".label").remove();
+        svg.selectAll(".bar-hover-label").remove();
+
+        groupedByCountry.forEach((values, key) => { // select multiple countries 
+          values.forEach((entry, index) => {
+            var barWidth = selectedNutrient === "BOTH NUTRIENTS" ? xScale.bandwidth() / 2 : xScale.bandwidth();
+            var barHeight = Math.abs(yScale(0) - yScale(entry.OBS_VALUE));
+
+            var rect = svg.append("rect")
+              .attr("class", "bar")
+              .attr("x", xScale(key) + (selectedNutrient === "BOTH NUTRIENTS" ? index * barWidth : 0))
+              .attr("y", yScale(0))
+              .attr("width", barWidth)
+              .attr("height", 0)
+              .attr("fill", selectedNutrient === "TOTAL" ? "orange" : color(entry.Nutrient))
+              .on("mouseover", function(event, d) {
+                var tooltipHtml = `<strong>${key}</strong>: ${entry.OBS_VALUE.toFixed(2)}`;
+                if (key === "European Union" && euMemberNames.length > 0) {
+                  // Find values for each EU member country in the current filteredData
+                  var euMemberValues = euMemberNames.map(function(name) {
+                    var memberData = filteredData.find(d => d["Reference area"] === name && d.Nutrient === entry.Nutrient);
+                    if (!memberData && entry.Nutrient === "N/A") {
+                      // For TOTAL, try to find N/A
+                      memberData = filteredData.find(d => d["Reference area"] === name && d.Nutrient === "N/A");
+                    }
+                    var val = memberData ? memberData.OBS_VALUE.toFixed(2) : "N/A";
+                    return `${name}: ${val}`;
+                  });
+                  tooltipHtml += `<br><span style='font-size:12px;'><strong>Members:</strong><br>${euMemberValues.join("<br>")}</span>`;
+                }
+                var container = document.getElementById("chart");
+                var rectBox = container.getBoundingClientRect();
+                var mouseX = event.clientX - rectBox.left;
+                var mouseY = event.clientY - rectBox.top;
+                tooltip.html(tooltipHtml)
+                  .style("left", `${mouseX + 15}px`)
+                  .style("top", `${mouseY - 10}px`)
+                  .classed("visible", true);
+              })
+              .on("mouseout", function() {
+                tooltip.classed("visible", false);
+              })
+              .transition()
+              .duration(600)
+              .attr("y", entry.OBS_VALUE >= 0 ? yScale(entry.OBS_VALUE) : yScale(0))
+              .attr("height", barHeight);
+          });
+        });
+        
+        //create legends
+        var legend = d3.select("#legend");
+        legend.html("");
+        if (selectedCountries.length > 0) {
+          let nutrientsInData;
+          if (finalFilteredData.some(d => d.Nutrient === "N/A")) {
+            nutrientsInData = new Set(["TOTAL NUTRIENTS"]);
+          } else {
+            nutrientsInData = new Set(finalFilteredData.map(d => d.Nutrient));
+          }
+          nutrientsInData.forEach(nutrient => {
+            var legendItem = legend.append("div").attr("class", "legend-item");
+            legendItem.append("div")
+              .attr("class", "legend-color")
+              .style("background-color", color(nutrient));
+            legendItem.append("span").text(nutrient);
+          });
+        }
+
+          // Update table
+          var tableBody = d3.select("#chart_table tbody");
+          tableBody.html("");
+
+          // Calculate the total value for the country ratio
+          var totalSum = 0;
+          groupedByCountry.forEach((values, country) => {
+            var nitrogen = values.find(d => d.Nutrient === "NITROGEN")?.OBS_VALUE || 0;
+            var phosphorus = values.find(d => d.Nutrient === "PHOSPHORUS")?.OBS_VALUE || 0;
+            var total;
+
+            // caculate total of each nutrients options 
+            if (selectedNutrient === "NITROGEN") {
+              total = nitrogen;
+            } else if (selectedNutrient === "PHOSPHORUS") {
+              total = phosphorus;
+            } else if (selectedNutrient === "BOTH NUTRIENTS") {
+              total = nitrogen + phosphorus;
+            } else if (selectedNutrient === "TOTAL") {
+              total = values.find(d => d.Nutrient === "N/A")?.OBS_VALUE || 0;
+            }
+
+            totalSum += total;
+          });
+
+          // create table rows, intiate and update it 
+          groupedByCountry.forEach((values, country) => {
+            var nitrogen = values.find(d => d.Nutrient === "NITROGEN")?.OBS_VALUE || 0;
+            var phosphorus = values.find(d => d.Nutrient === "PHOSPHORUS")?.OBS_VALUE || 0;
+            var total;
+
+            if (selectedNutrient === "NITROGEN") {
+              total = nitrogen;
+            } else if (selectedNutrient === "PHOSPHORUS") {
+              total = phosphorus;
+            } else if (selectedNutrient === "BOTH NUTRIENTS") {
+              total = nitrogen + phosphorus;
+            } else if (selectedNutrient === "TOTAL") {
+              total = values.find(d => d.Nutrient === "N/A")?.OBS_VALUE || 0;
+            }
+
+            var nitrogenRatio = total > 0 ? (nitrogen / total * 100).toFixed(2) + "%" : "N/A";
+            var phosphorusRatio = total > 0 ? (phosphorus / total * 100).toFixed(2) + "%" : "N/A";
+            var countryRatio = totalSum > 0 ? (total / totalSum * 100).toFixed(2) + "%" : "N/A";
+
+            //append columns with function implementation 
+            var tr = tableBody.append("tr");
+            if (country === "European Union") {
+              tr.style("font-weight", "bold");
+            }
+            tr.html(`
+                <td>${country}</td>
+                <td>${nitrogen.toFixed(2)}</td>
+                <td>${phosphorus.toFixed(2)}</td>
+                <td>${total.toFixed(2)}</td>
+                <td>${nitrogenRatio}</td>
+                <td>${phosphorusRatio}</td>
+                <td>${countryRatio}</td>
+              `);
+
+            // If this is the European Union row, add EU member sub-rows immediately after
+            if (country === "European Union" && euMemberNames.length > 0) {
+              euMemberNames.forEach(function(name) {
+                var nitrogenMember = filteredData.find(x => x["Reference area"] === name && x.Nutrient === "NITROGEN");
+                var phosphorusMember = filteredData.find(x => x["Reference area"] === name && x.Nutrient === "PHOSPHORUS");
+                var nitrogenVal = nitrogenMember ? nitrogenMember.OBS_VALUE : 0;
+                var phosphorusVal = phosphorusMember ? phosphorusMember.OBS_VALUE : 0;
+                var totalVal = nitrogenVal + phosphorusVal;
+                var memberCountryRatio = totalSum > 0 ? (totalVal / totalSum * 100).toFixed(2) + "%" : "N/A";
+                var memberNitrogenRatio = totalVal > 0 ? (nitrogenVal / totalVal * 100).toFixed(2) + "%" : "N/A";
+                var memberPhosphorusRatio = totalVal > 0 ? (phosphorusVal / totalVal * 100).toFixed(2) + "%" : "N/A";
+                tableBody.append("tr")
+                  .attr("class", "eu-member-row")
+                  .style("font-size", "15px")
+                  .style("background-color", "#f9f9fc")
+                  .html(`
+                    <td style='padding-left:32px;'>↳ ${name}</td>
+                    <td>${nitrogenVal.toFixed(2)}</td>
+                    <td>${phosphorusVal.toFixed(2)}</td>
+                    <td>${totalVal.toFixed(2)}</td>
+                    <td>${memberNitrogenRatio}</td>
+                    <td>${memberPhosphorusRatio}</td>
+                    <td>${memberCountryRatio}</td>
+                  `);
+              });
+            }
+          });
+      };
+
+      countrySelect.on("change", function() { updateChart(); });
+      yearSelect.on("change", function() { updateChart(); });
+      nutrientSelect.on("change", function() { updateChart(); });
+
+      // Store the original order for unsorting
+      var originalOrder = null;
+
+      d3.select("#sort-btn").on("click", function() {
+        // On first click, store the original order
+        if (!originalOrder) {
+          var selectedYear = yearSelect.node().value;
+          var selectedMeasurement = measurementSelect.node().value;
+          var selectedNutrient = nutrientSelect.node().value;
+          var filteredData = flattenedData.filter(d =>
+            d.TIME_PERIOD === selectedYear &&
+            d.Measure === selectedMeasurement &&
+            (selectedNutrient === "BOTH NUTRIENTS" ||
+              (selectedNutrient === "TOTAL" && d.Nutrient === "N/A") ||
+              d.Nutrient === selectedNutrient)
+          );
+          var selectedCountries = Array.from(countrySelect.node().selectedOptions).map(option => option.value);
+          var euCountries = [
+            "Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"
+          ];
+          let selectedCountriesFiltered = selectedCountries;
+          if (selectedCountries.includes("European Union")) {
+            selectedCountriesFiltered = selectedCountries.filter(c => !euCountries.includes(c));
+          }
+          var tempFilteredData = filteredData.filter(d => selectedCountriesFiltered.includes(d["Reference area"]));
+          // Remove duplicate EU rows, keep only the highest value
+          var euRows = tempFilteredData.filter(d => d["Reference area"] === "European Union");
+          if (euRows.length > 1) {
+            var maxEU = euRows.reduce((max, curr) => (curr.OBS_VALUE > max.OBS_VALUE ? curr : max), euRows[0]);
+            tempFilteredData = tempFilteredData.filter(d => d["Reference area"] !== "European Union");
+            tempFilteredData.push(maxEU);
+          }
+          originalOrder = tempFilteredData.map(d => d["Reference area"]);
+        }
+        isSorted = !isSorted;
+        // Update button label
+        d3.select(this).text(isSorted ? "Unsort" : "Sort");
+        updateChart();
+      });
+
+      // When chart is updated, if unsorted, restore original order
+      var _updateChart = updateChart;
+      updateChart = function(sortOverride) {
+        if (!isSorted && originalOrder) {
+          // After filtering and deduplication, restore order
+          var selectedYear = yearSelect.node().value;
+          var selectedMeasurement = measurementSelect.node().value;
+          var selectedNutrient = nutrientSelect.node().value;
+          var filteredData = flattenedData.filter(d =>
+            d.TIME_PERIOD === selectedYear &&
+            d.Measure === selectedMeasurement &&
+            (selectedNutrient === "BOTH NUTRIENTS" ||
+              (selectedNutrient === "TOTAL" && d.Nutrient === "N/A") ||
+              d.Nutrient === selectedNutrient)
+          );
+          var selectedCountries = Array.from(countrySelect.node().selectedOptions).map(option => option.value);
+          var euCountries = [
+            "Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"
+          ];
+          let selectedCountriesFiltered = selectedCountries;
+          if (selectedCountries.includes("European Union")) {
+            selectedCountriesFiltered = selectedCountries.filter(c => !euCountries.includes(c));
+          }
+          var tempFilteredData = filteredData.filter(d => selectedCountriesFiltered.includes(d["Reference area"]));
+          // Remove duplicate EU rows, keep only the highest value
+          var euRows = tempFilteredData.filter(d => d["Reference area"] === "European Union");
+          if (euRows.length > 1) {
+            var maxEU = euRows.reduce((max, curr) => (curr.OBS_VALUE > max.OBS_VALUE ? curr : max), euRows[0]);
+            tempFilteredData = tempFilteredData.filter(d => d["Reference area"] !== "European Union");
+            tempFilteredData.push(maxEU);
+          }
+          // Restore original order
+          tempFilteredData.sort((a, b) => originalOrder.indexOf(a["Reference area"]) - originalOrder.indexOf(b["Reference area"]));
+          var finalFilteredData = tempFilteredData;
+          // ...proceed with the rest of the chart update logic...
+          // Copy-paste the rest of the original updateChart logic here, but since we are patching, just call the original function
+          _updateChart.call(this, false);
+          return;
+        }
+        _updateChart.call(this, sortOverride);
+      };
+
+      // Reset sort state when filters change
+      function resetSortState() {
+        isSorted = false;
+        originalOrder = null;
+        d3.select("#sort-btn").text("Sort");
+      }
+      countrySelect.on("change", function() { resetSortState(); updateChart(); });
+      yearSelect.on("change", function() { resetSortState(); updateChart(); });
+      nutrientSelect.on("change", function() { resetSortState(); updateChart(); });
+
+      updateChart();
+    });
+  </script>
+</body>
+</html>

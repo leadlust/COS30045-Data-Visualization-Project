@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Choropleth Map</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f9;
+    }
+    nav {
+      background-color: #242425;
+      padding: 15px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    nav a {
+      color: #ffffff;
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 18px;
+      padding: 10px 20px;
+      border-radius: 5px;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    nav a:hover {
+      background-color: #000000;
+      transform: scale(1.1);
+    }
+
+    #controls {
+      max-width: 1660px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    #controls label {
+      font-size: 16px;
+      color: #242425;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 23%;
+      min-width: 200px;
+    }
+    #controls select {
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+    #controls select:focus {
+      box-shadow: 0 0 5px rgba(0,123,255,0.5);
+      outline: none;
+    }
+    #mapBox {
+      max-width: 1660px;
+      min-width: 800px;
+      margin: 30px auto 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px 30px 30px 30px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #chart-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 550px;
+      position: relative;
+    }
+    #chart {
+      width: 100%;
+      height: 550px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    #chart svg {
+      border-radius: 10px;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .tooltip {
+      position: absolute;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: none;
+      transition: opacity 0.3s ease, transform 0.2s ease;
+    }
+    .tooltip.visible {
+      display: block;
+      opacity: 1;
+      transform: translateY(-5px);
+    }
+    .dynamic-title {
+      text-align: center;
+      font-size: 36px;
+      font-weight: bold;
+      margin: 20px auto;
+      color: #242425;
+      max-width: 1660px;
+      word-break: break-word;
+      white-space: normal;
+      display: block;
+    }
+    .legend {
+      position: absolute;
+      bottom: 400px;
+      right: 30px;
+      background: #ffffff;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      font-size: 14px;
+    }
+    .legend-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #242425;
+      margin-bottom: 5px;
+    }
+    .legend .label {
+      margin: 5px 0;
+      font-size: 12px;
+      font-weight: bold;
+      color: #242425;
+    }
+    .legend .color-bar {
+      display: flex;
+      height: 20px;
+      width: 200px;
+      margin-bottom: 10px;
+    }
+    .legend .color-bar div {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="pie.html">Pie Chart</a>
+    <a href="tsp.html">Time Series Plot</a>
+    <a href="map.html">Choropleth Map</a>
+    <a href="scatterplot.html">Scatter Plot</a>
+    <a href="bar.html">Bar Chart</a>
+  </nav>
+  <div class="dynamic-title" id="mapTitle"></div>
+  <div id="controls">
+    <label>Select Year:
+      <select id="yearSelect"></select>
+    </label>
+    <label>Select Measure:
+      <select id="measureSelect"></select>
+    </label>
+    <label>Select Nutrient:
+      <select id="nutrientSelect">
+        <option value="NITROGEN">NITROGEN</option>
+        <option value="PHOSPHORUS">PHOSPHORUS</option>
+        <option value="TOTAL" disabled="true">TOTAL</option>
+      </select>
+    </label>
+  </div>
+  <div id="mapBox">
+    <div id="chart-container">
+      <div id="chart"></div>
+      <div class="legend" id="legend">
+        <!-- Legend Title -->
+        <div class="legend-title" id="legendTitle">Unit: </div>
+        <div class="color-bar" id="colorBar"></div>
+        <div class="label" id="legendMin"></div>
+        <div class="label" id="legendMax"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Load GeoJSON and data
+    Promise.all([
+      d3.json("worlds.geo.json"), 
+      d3.csv("processed_project_dataset.csv")
+    ]).then(function ([geoData, csvData]) {
+      // initalization process and mapping 
+      const flattenedData = csvData;
+      const years = Array.from(new Set(csvData.map(d => d.TIME_PERIOD)));
+      const measures = Array.from(new Set(csvData.map(d => d.Measure)));
+      const Nutrient = Array.from(new Set(csvData.map(d => d.NUTRIENTS)));
+
+      const yearSelect = d3.select("#yearSelect");
+      const measureSelect = d3.select("#measureSelect");
+      const nutrientSelect = d3.select("#nutrientSelect");
+
+      years.forEach(year => yearSelect.append("option").text(year).attr("value", year));
+      measures.forEach(measure => measureSelect.append("option").text(measure).attr("value", measure));
+
+      const width = document.getElementById("chart").clientWidth;
+      const height = document.getElementById("chart").clientHeight;
+      const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
+      // Add a group for zooming
+      const mapGroup = svg.append("g").attr("class", "map-group");
+      const projection = d3.geoNaturalEarth1().scale(200).translate([width / 2, height / 2]);
+      const path = d3.geoPath().projection(projection);
+      const colorScale = d3.scaleSequential().interpolator(d3.interpolatePlasma);
+      const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+
+      const colorBar = d3.select("#colorBar");
+      const legendMin = d3.select("#legendMin");
+      const legendMax = d3.select("#legendMax");
+      const legendTitle = d3.select("#legendTitle");
+
+      // D3 zoom behavior
+      const zoom = d3.zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", (event) => {
+          mapGroup.attr("transform", event.transform);
+        });
+      svg.call(zoom);
+
+      const updateLegend = (domain, unit) => {// update legends 
+        colorBar.selectAll("div").remove();
+        if (domain[0] === undefined || domain[1] === undefined) return;
+
+        const steps = 10;
+        const stepDomain = d3.range(domain[0], domain[1], (domain[1] - domain[0]) / steps);
+        stepDomain.push(domain[1]); // Ensure the max is included
+
+        stepDomain.forEach(value => {
+          colorBar.append("div")
+            .style("background", colorScale(value))
+            .style("flex", 1);
+        });
+
+        legendMin.text(`Min: ${domain[0].toFixed(2)}`);
+        legendMax.text(`Max: ${domain[1].toFixed(2)}`);
+        legendTitle.text(`Unit: ${unit}`);
+      };
+      //update map function
+      const updateMap = () => {
+        const selectedYear = yearSelect.node().value;
+        const selectedMeasurement = measureSelect.node().value;
+        const selectedNutrient = nutrientSelect.node().value;
+
+        // Filter data
+        const filteredData = flattenedData.filter(d =>
+          d.TIME_PERIOD === selectedYear &&
+          d.Measure === selectedMeasurement &&
+          (selectedNutrient === "TOTAL" ? d.NUTRIENTS === "N/A" : d.NUTRIENTS === selectedNutrient)
+        );
+        
+        //map domain range and map value 
+        const values = filteredData.map(d => +d.OBS_VALUE);
+        const domain = [d3.min(values), d3.max(values)];
+        colorScale.domain(domain);
+
+        const unit = filteredData.length > 0 ? filteredData[0]["Unit of measure"] : "N/A";
+
+        updateLegend(domain, unit);
+
+        // Update map title
+        d3.select("#mapTitle").text(`${selectedMeasurement} of ${selectedNutrient} in ${selectedYear}`);
+
+        // Draw map
+        // Bind map data to paths inside mapGroup for zooming
+        const paths = mapGroup.selectAll("path").data(geoData.features)
+          .join("path")
+          .attr("d", path)
+          .attr("fill", d => {
+            const countryData = filteredData.find(f => f["Reference area"] === d.properties.name);
+            return countryData ? colorScale(+countryData.OBS_VALUE) : "#ccc";
+          })
+          .on("mouseover", function (event, d) {
+            const countryData = filteredData.find(f => f["Reference area"] === d.properties.name);
+            tooltip
+              .style("display", "block")
+              .html(`<strong>${d.properties.name}</strong><br>Value: ${countryData ? countryData.OBS_VALUE : "N/A"}`);
+          })
+          .on("mousemove", function(event) {
+            tooltip
+              .style("left", (event.pageX + 15) + "px")
+              .style("top", (event.pageY - 10) + "px");
+          })
+          .on("mouseout", () => tooltip.style("display", "none"));
+      };
+      measureSelect.on("change", function () {// update on change measurement methods
+        var selectedMeasurement = measureSelect.node().value;
+
+        // Check if the selected measurement meets either condition
+        if (
+          flattenedData.some(d => d.Measure === selectedMeasurement && (!d.NUTRIENTS.includes("NITROGEN") 
+          && !d.NUTRIENTS.includes("PHOSPHORUS") && d.NUTRIENTS.includes("N/A")))
+        ) {
+          // If the selected measurement matches the conditions, enable only "TOTAL"
+          nutrientSelect.selectAll("option").property("disabled", true);
+          nutrientSelect.node().value = "TOTAL";
+        } else {
+          // Reset nutrient options except "TOTAL"
+          nutrientSelect.selectAll("option").property("disabled", false); // Re-enable all options
+          nutrientSelect.select('option[value="TOTAL"]').property("disabled", true); // Disable only the "TOTAL" option
+          nutrientSelect.node().value = nutrientSelect.selectAll("option").nodes()[0].value; // Select the first option
+        }
+
+        updateMap();
+      });
+
+
+      yearSelect.on("change", updateMap);
+      nutrientSelect.on("change", updateMap);
+
+      // Initialize map and legend
+      updateMap();
+    });
+  </script>
+</body>
+</html>

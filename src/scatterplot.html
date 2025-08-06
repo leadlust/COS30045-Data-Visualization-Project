@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Scatter Plot</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f9;
+    }
+
+    nav {
+      background-color: #242425;
+      padding: 15px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    nav a {
+      color: #ffffff;
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 18px;
+      padding: 10px 20px;
+      border-radius: 5px;
+    }
+
+    nav a:hover {
+      background-color: #000000;
+      transform: scale(1.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+      font-size: 36px;
+      color: #242425;
+    }
+
+    #controls {
+      max-width: 1660px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    #controls label {
+      font-size: 16px;
+      color: #242425;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 23%;
+      min-width: 200px;
+    }
+
+    #controls select {
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+
+    #controls select:focus {
+      box-shadow: 0 0 5px rgba(0,123,255,0.5);
+      outline: none;
+    }
+
+    select[multiple] {
+      height: 120px;
+      overflow-y: auto;
+    }
+
+#scatterContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#chart {
+  width: 100%;
+  max-width: 1710px;
+  height: 740px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  position: relative;
+  overflow: visible;
+  box-sizing: border-box;
+  padding-bottom: 40px;
+}
+
+
+    .chart-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      margin: 30px 0 10px 0;
+      color: #242425;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: none;
+    }
+
+    .tooltip.visible {
+      display: block;
+      opacity: 1;
+      transform: translateY(-5px);
+    }
+
+    .legend {
+      position: static;
+      margin: 30px auto 40px auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border: none;
+      max-width: 1710px;
+      width: 1710px;
+      min-width: 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      min-height: 48px;
+      box-sizing: border-box;
+      padding: 20px 0;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .legend-item span {
+      font-size: 14px;
+      color: #242425;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="pie.html">Pie Chart</a>
+    <a href="tsp.html">Time Series Plot</a>
+    <a href="map.html">Choropleth Map</a>
+    <a href="scatterplot.html">Scatter Plot</a>
+    <a href="bar.html">Bar Chart</a>
+  </nav>
+
+  <h1>Scatter Plot</h1>
+
+  <div id="controls">
+    <label>Select Countries:
+      <select id="countrySelect" multiple size="10"></select>
+    </label>
+    <label>Select X-Axis Measurement:
+      <select id="xMeasurementSelect"></select>
+    </label>
+    <label>Select Y-Axis Measurement:
+      <select id="yMeasurementSelect"></select>
+    </label>
+    <label>Select Nutrient:
+      <select id="nutrientSelect">
+        <option value="NITROGEN">NITROGEN</option>
+        <option value="PHOSPHORUS">PHOSPHORUS</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="scatterContainer">
+    <div id="chart">
+      <div class="chart-title" id="chartTitle"></div>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+
+<script>
+
+// Path to the dataset CSV file
+var datasetPath = "processed_project_dataset.csv";
+// Initialize and load data
+d3.csv(datasetPath).then(function (data) {
+  // Flatten and preprocess data for easier access
+  var flattenedData = data.map(d => ({
+    "Reference area": d["Reference area"],
+    TIME_PERIOD: d.TIME_PERIOD,
+    Measure: d.Measure,
+    Nutrient: d.NUTRIENTS,
+    OBS_VALUE: +d.OBS_VALUE * (+d.UNIT_MULT || 1),
+    "Unit of measure": d["Unit of measure"],
+  }));
+
+  // Extract unique country and measurement lists
+  var countries = Array.from(new Set(flattenedData.map(d => d["Reference area"])));
+  var measurements = Array.from(new Set(flattenedData.map(d => d.Measure)));
+
+  // Select elements for controls
+  var countrySelect = d3.select("#countrySelect");
+  var xMeasurementSelect = d3.select("#xMeasurementSelect");
+  var yMeasurementSelect = d3.select("#yMeasurementSelect");
+  var nutrientSelect = d3.select("#nutrientSelect");
+
+  // Populate country and measurement dropdowns
+  countries.forEach(country => {
+    countrySelect.append("option").text(country).attr("value", country);
+  });
+  measurements.forEach(measurement => {
+    xMeasurementSelect.append("option").text(measurement).attr("value", measurement);
+    yMeasurementSelect.append("option").text(measurement).attr("value", measurement);
+  });
+ 
+  // Create SVG for the scatterplot
+  var svg = d3.select("#chart").append("svg")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("viewBox", "-50 0 1500 640");
+
+  // Create a group for zooming and panning
+  var zoomGroup = svg.append("g").attr("class", "zoom-group");
+
+  var tooltip = d3.select("#tooltip");
+
+  var xScale = d3.scaleLinear().range([50, 1150]);
+  var yScale = d3.scaleLinear().range([550, 50]);
+
+  var xAxis = zoomGroup.append("g").attr("transform", "translate(0,550)");
+  var yAxis = zoomGroup.append("g").attr("transform", "translate(50,0)");
+  // Axis labels
+  var xAxisLabel = zoomGroup.append("text")
+    .attr("text-anchor", "middle")
+    .attr("x", 600)
+    .attr("y", 590)
+    .attr("font-size", "20px")
+    .attr("fill", "#333");
+  var yAxisLabel = zoomGroup.append("text")
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -300)  
+    .attr("y", -10)   
+    .attr("font-size", "20px")
+    .attr("fill", "#333");
+
+  // Zero lines for axes
+  var zeroLineX = zoomGroup.append("line")
+    .attr("stroke", "black")
+    .attr("stroke-dasharray", "5,5")
+    .attr("opacity", 0.5);
+  var zeroLineY = zoomGroup.append("line")
+    .attr("stroke", "black")
+    .attr("stroke-dasharray", "5,5")
+    .attr("opacity", 0.5);
+
+  // Zoom/pan
+  var zoom = d3.zoom()
+    .scaleExtent([0.5, 10])
+    .on("zoom", function(event) {
+      var newX = event.transform.rescaleX(xScale);
+      var newY = event.transform.rescaleY(yScale);
+      xAxis.call(d3.axisBottom(newX));
+      yAxis.call(d3.axisLeft(newY));
+      // Hide points outside chart
+      zoomGroup.selectAll(".point")
+        .attr("cx", d => newX(d.x))
+        .attr("cy", d => newY(d.y))
+        .style("display", d => {
+          const cx = newX(d.x);
+          const cy = newY(d.y);
+          // Only show points inside chart area
+          return (cx < 50 || cx > 1150 || cy < 50 || cy > 550) ? "none" : null;
+        });
+      // Update zero lines
+      const zx = newX(0);
+      const zy = newY(0);
+      const showZeroLineX = zx >= 50 && zx <= 1150;
+      zeroLineX
+        .attr("x1", zx)
+        .attr("y1", newY.range()[1])
+        .attr("x2", zx)
+        .attr("y2", newY.range()[0])
+        .style("display", showZeroLineX ? null : "none");
+      const showZeroLineY = zy >= 50 && zy <= 550;
+      zeroLineY
+        .attr("x1", newX.range()[0])
+        .attr("y1", zy)
+        .attr("x2", newX.range()[1])
+        .attr("y2", zy)
+        .style("display", showZeroLineY ? null : "none");
+      // Move axis labels
+      xAxisLabel.attr("x", (newX.range()[0] + newX.range()[1]) / 2);
+      yAxisLabel.attr("x", -((newY.range()[0] + newY.range()[1]) / 2));
+    });
+
+  svg.call(zoom);
+
+  // Main chart update function
+  var updateChart = function (resetZoom) {
+    // Get selected values from controls
+    var selectedCountries = Array.from(countrySelect.node().selectedOptions).map(option => option.value);
+    var selectedXMeasurement = xMeasurementSelect.node().value;
+    var selectedYMeasurement = yMeasurementSelect.node().value;
+    var selectedNutrient = nutrientSelect.node().value;
+
+    // Filter data for selected countries and measurements
+    var filteredData = flattenedData.filter(d =>
+      selectedCountries.includes(d["Reference area"]) &&
+      (d.Measure === selectedXMeasurement || d.Measure === selectedYMeasurement)
+    );
+    // Update chart title only if countries are selected
+    if (selectedCountries.length > 0) {
+      d3.select("#chartTitle").text(`${selectedXMeasurement} (X-Axis) versus ${selectedYMeasurement} (Y-Axis)`);
+    } else {
+      d3.select("#chartTitle").text("");
+    }
+
+    // If no data, clear chart and legend
+    if (filteredData.length === 0) {
+      svg.selectAll(".point").remove();
+      d3.select("#legend").html("");
+      return;
+    }
+ 
+    // Group by country and year
+    var countryTimeGroups = d3.group(filteredData, d => d["Reference area"] + "_" + d.TIME_PERIOD);
+    var points = [];
+
+    // Find x and y values for the selected measurements
+    countryTimeGroups.forEach((group, key) => {
+      var country = group[0]["Reference area"];
+      var time = group[0]["TIME_PERIOD"];
+
+      // X axis
+      let xGroup = group.filter(d => d.Measure === selectedXMeasurement);
+      let xEntry = xGroup.find(d => d.Nutrient === selectedNutrient) || xGroup.find(d => d.Nutrient === "N/A");
+
+      // Y axis
+      let yGroup = group.filter(d => d.Measure === selectedYMeasurement);
+      let yEntry = yGroup.find(d => d.Nutrient === selectedNutrient) || yGroup.find(d => d.Nutrient === "N/A");
+
+      if (xEntry && yEntry) {
+        points.push({
+          country: country,
+          time: time,
+          x: xEntry.OBS_VALUE,
+          y: yEntry.OBS_VALUE,
+          xUnit: xEntry["Unit of measure"],
+          yUnit: yEntry["Unit of measure"]
+        });
+      }
+    });
+    // If no points, clear chart and legend
+    if (points.length === 0) {
+      svg.selectAll(".point").remove();
+      d3.select("#legend").html("");
+      return;
+    }
+ 
+    // Compute axis extents
+    let xExtent = d3.extent(points, d => d.x);
+    let yExtent = d3.extent(points, d => d.y);
+    if (xExtent[0] === xExtent[1]) xExtent = [xExtent[0] - 1, xExtent[1] + 1];
+    if (yExtent[0] === yExtent[1]) yExtent = [yExtent[0] - 1, yExtent[1] + 1];
+
+    xScale.domain(xExtent).nice();
+    yScale.domain(yExtent).nice();
+
+    // Reset zoom transform if requested
+    if (resetZoom) {
+      svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
+    }
+
+    // Update axes
+    xAxis.transition().duration(600).call(d3.axisBottom(xScale));
+    yAxis.transition().duration(600).call(d3.axisLeft(yScale));
+
+    // Update axis labels
+    xAxisLabel.text(`${selectedXMeasurement} (${points[0].xUnit})`);
+    yAxisLabel.text(`${selectedYMeasurement} (${points[0].yUnit})`);
+    
+    // Update zero lines for negative values
+    zeroLineX
+      .transition().duration(600)
+      .attr("x1", xScale(0))
+      .attr("y1", yScale.range()[1])
+      .attr("x2", xScale(0))
+      .attr("y2", yScale.range()[0]);
+    zeroLineY
+      .transition().duration(600)
+      .attr("x1", xScale.range()[0])
+      .attr("y1", yScale(0))
+      .attr("x2", xScale.range()[1])
+      .attr("y2", yScale(0));
+
+    // Color scale for countries
+    var color = d3.scaleOrdinal().domain(selectedCountries).range(d3.schemeCategory10);
+
+    // Bind data to circles
+    var circles = zoomGroup.selectAll(".point").data(points, d => d.country + d.time);
+
+    // Remove old points
+    circles.exit().transition().duration(300).attr("r", 0).remove();
+
+    // Add new points
+    circles.enter()
+      .append("circle")
+      .attr("class", "point")
+      .attr("r", 0)
+      .attr("cx", d => xScale(d.x))
+      .attr("cy", d => yScale(d.y))
+      .attr("fill", d => color(d.country))
+      .on("mousemove", function (event, d) {
+        // Show all overlapping points at this (x, y)
+        var container = document.getElementById("chart");
+        var rect = container.getBoundingClientRect();
+        var mouseX = event.clientX - rect.left;
+        var mouseY = event.clientY - rect.top;
+        var overlapping = points.filter(p => p.x === d.x && p.y === d.y);
+        var countryYearMap = {};
+        overlapping.forEach(p => {
+          if (!countryYearMap[p.country]) countryYearMap[p.country] = [];
+          countryYearMap[p.country].push(p.time);
+        });
+        var countryLines = Object.entries(countryYearMap).map(([country, years]) =>
+          `${country} (${years.join(", ")})`
+        );
+        var tooltipHtml =
+          countryLines.join(", ") +
+          `<br>${selectedXMeasurement}: ${d.x}<br>${selectedYMeasurement}: ${d.y}`;
+        tooltip.html(tooltipHtml)
+          .style("left", `${mouseX + 15}px`)
+          .style("top", `${mouseY - 10}px`)
+          .classed("visible", true);
+      })
+      .on("mouseout", () => tooltip.classed("visible", false))
+      .transition()
+      .duration(600)
+      .attr("r", 5);
+
+    // Update existing points
+    circles.transition()
+      .duration(600)
+      .attr("cx", d => xScale(d.x))
+      .attr("cy", d => yScale(d.y))
+      .attr("fill", d => color(d.country))
+      .attr("r", 5);
+
+    // Update legend (country list)
+    var legend = d3.select("#legend");
+    legend.html("");
+    selectedCountries.forEach(country => {
+      var legendItem = legend.append("div").attr("class", "legend-item");
+      legendItem.append("div")
+        .attr("class", "legend-color")
+        .style("background-color", color(country));
+      legendItem.append("span").text(country);
+    });
+  };
+  // Attach updateChart to control changes
+  countrySelect.on("change", function() { updateChart(true); }); // Reset zoom on country change
+  xMeasurementSelect.on("change", function() { updateChart(); });
+  yMeasurementSelect.on("change", function() { updateChart(); });
+  nutrientSelect.on("change", function() { updateChart(); });
+});
+</script>
+
+</body>
+</html>
